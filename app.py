@@ -4,43 +4,36 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-# Configuración de la página en formato ancho para aprovechar mejor el espacio
+# Configuración de la página en formato ancho
 st.set_page_config(
-    page_title="Motor de Progreso Físico", page_icon="🏋️‍♂️", layout="wide"
+    page_title="Control Diario - Fitness & Gym", page_icon="💪", layout="wide"
 )
 
-# Estilos visuales modernos para tarjetas y contenedores
+# Estilos visuales modernos
 st.markdown(
     """
     <style>
-    .main {
-        background-color: #0e1117;
-    }
-    .stMetric {
-        background-color: #1e2129;
-        padding: 15px;
-        border-radius: 10px;
-        border: 1px solid #2d3139;
-    }
+    .main { background-color: #0e1117; }
+    .stMetric { background-color: #1e2129; padding: 15px; border-radius: 10px; border: 1px solid #2d3139; }
     </style>
 """,
     unsafe_allow_html=True,
 )
 
-st.title("🏋️‍♂️ Motor de Progreso Físico y Nutrición")
+st.title("💪 Sistema de Control Diario: Definición & Gym")
 st.markdown(
-    "Sistema automatizado avanzado para control de peso, pasos y"
-    " optimización de definición."
+    "Registro granular de peso, pasos, nutrición (macros) y sobrecarga"
+    " progresiva en el gimnasio."
 )
 
-ARCHIVO_DATOS = "historial_fitness.json"
+ARCHIVO_DATOS = "historial_diario.json"
 
 
 def cargar_datos():
   if os.path.exists(ARCHIVO_DATOS):
     with open(ARCHIVO_DATOS, "r", encoding="utf-8") as f:
       return json.load(f)
-  return {"historial": []}
+  return {"registros": []}
 
 
 def guardar_datos(datos):
@@ -48,125 +41,237 @@ def guardar_datos(datos):
     json.dump(datos, f, indent=4, ensure_ascii=False)
 
 
-datos = cargar_datos()
-historial = datos["historial"]
+db = cargar_datos()
+registros = db["registros"]
 
-# Organización mediante Pestañas Profesionales (Tabs)
+# Pestañas principales de la aplicación
 tab1, tab2, tab3 = st.tabs(
-    ["📊 Dashboard Principal", "📝 Registrar Semana", "📈 Gráficas de Tendencia"]
+    [
+        "📝 Registro Diario",
+        "📊 Dashboard y Gráficas",
+        "🏋️‍♂️ Historial de Fuerza (Gym)",
+    ]
 )
 
-# ================= TAB 1: DASHBOARD =================
+# ================= TAB 1: REGISTRO DIARIO =================
 with tab1:
-  st.subheader("Estado Actual del Sistema")
+  st.subheader("Registrar Datos del Día")
 
-  if len(historial) >= 2:
-    actual = historial[-1]
-    anterior = historial[-2]
-    cambio_peso = actual["peso"] - anterior["peso"]
-    pct_cambio = (cambio_peso / anterior["peso"]) * 100
-
-    # Tarjetas de métricas visuales superiores
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-      st.metric(
-          label="Peso Actual",
-          value=f"{actual['peso']} kg",
-          delta=f"{cambio_peso:+.2f} kg",
-      )
-    with col2:
-      st.metric(label="Pasos Promedio", value=f"{actual['pasos']} pasos")
-    with col3:
-      st.metric(label="Semana Activa", value=f"Semana {actual['semana']}")
-    with col4:
-      st.metric(label="Variación Relativa", value=f"{pct_cambio:+.2f}%")
-
-    st.divider()
-
-    # Evaluación automatizada con alertas visuales de colores
-    if -1.0 <= pct_cambio <= -0.5:
-      st.success(
-          "🚀 **ESTADO: ÓPTIMO** — El sistema opera perfectamente. Mantener"
-          " calorías y esquema actual de entrenamiento."
-      )
-    elif pct_cambio > 0 or pct_cambio > -0.3:
-      st.warning(
-          "⚠️ **ALERTA: ESTANCAMIENTO DETECTADO** — **ACCIÓN AUTOMÁTICA:**"
-          " Incrementar 1,500 pasos diarios o reducir 150 kcal en la dieta."
-      )
-    elif pct_cambio < -1.2:
-      st.error(
-          "🔥 **ALERTA: PÉRDIDA MUY AGRESIVA** — **ACCIÓN AUTOMÁTICA:** Aumentar"
-          " 150 kcal para proteger masa muscular magra."
-      )
-    else:
-      st.info(
-          "📈 **ESTADO: PROGRESO MODERADO** — Ritmo aceptable. Continuar"
-          " monitoreando la tendencia."
-      )
-
-    st.divider()
-    st.subheader("📋 Historial Completo de Registros")
-    st.dataframe(historial, use_container_width=True)
-  else:
-    st.info(
-        "ℹ️ **Primeros pasos:** Registra al menos **2 semanas** de datos en la"
-        " pestaña de 'Registrar Semana' para activar el dashboard analítico."
-    )
-
-# ================= TAB 2: REGISTRO =================
-with tab2:
-  st.subheader("Ingreso de Datos Semanales")
-  with st.form("form_nuevo_registro", clear_on_submit=False):
-    col1, col2, col3 = st.columns(3)
-    with col1:
-      sem = st.number_input("Número de semana", min_value=1, step=1, value=1)
-    with col2:
+  with st.form("form_diario", clear_on_submit=False):
+    col_f, col_p, col_pas = st.columns(3)
+    with col_f:
+      fecha = st.date_input("Fecha del registro")
+    with col_p:
       peso = st.number_input(
-          "Peso promedio (kg)", min_value=30.0, max_value=200.0, format="%.2f"
+          "Peso en ayunas (kg)", min_value=30.0, max_value=200.0, format="%.2f"
       )
-    with col3:
+    with col_pas:
       pasos = st.number_input(
-          "Pasos diarios promedio", min_value=0, max_value=50000, step=100
+          "Pasos totales del día", min_value=0, max_value=50000, step=100
       )
 
-    submit_button = st.form_submit_button(
-        "Guardar Registro en el Sistema", use_container_width=True
+    st.markdown("---")
+    st.subheader("🍽️ Control Nutricional (Macros)")
+    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+    with col_m1:
+      calorias = st.number_input("Calorías (kcal)", min_value=0, step=50)
+    with col_m2:
+      proteina = st.number_input("Proteína (g)", min_value=0, step=5)
+    with col_m3:
+      carbos = st.number_input("Carbohidratos (g)", min_value=0, step=5)
+    with col_m4:
+      grasas = st.number_input("Grasas (g)", min_value=0, step=5)
+
+    st.markdown("---")
+    st.subheader("💪 Entrenamiento de Fuerza (Gym del Día)")
+    st.markdown(
+        "Ingresa los ejercicios principales de tu sesión (Torso o Pierna):"
     )
 
-  if submit_button:
-    datos["historial"] = [h for h in datos["historial"] if h["semana"] != sem]
-    datos["historial"].append({"semana": sem, "peso": peso, "pasos": pasos})
-    datos["historial"] = sorted(datos["historial"], key=lambda x: x["semana"])
-    guardar_datos(datos)
+    # Espacios para registrar hasta 4 ejercicios clave del día
+    ejercicios_ingresados = []
+    for i in range(1, 5):
+      with st.expander(f"Ejercicio {i} (Opcional)"):
+        col_e1, col_e2, col_e3, col_e4 = st.columns(4)
+        with col_e1:
+          nombre_ej = st.text_input(
+              f"Nombre Ejercicio {i}", key=f"nombre_{i}"
+          )
+        with col_e2:
+          series = st.number_input(
+              f"Series {i}", min_value=0, max_value=10, value=0, key=f"ser_{i}"
+          )
+        with col_e3:
+          reps = st.text_input(
+              f"Reps (ej: 10,10,8)", value="", key=f"rep_{i}"
+          )
+        with col_e4:
+          peso_ej = st.number_input(
+              f"Peso usado (kg) {i}",
+              min_value=0.0,
+              format="%.1f",
+              key=f"pes_ej_{i}",
+          )
+
+        if nombre_ej and series > 0:
+          ejercicios_ingresados.append({
+              "ejercicio": nombre_ej,
+              "series": series,
+              "reps": reps,
+              "peso_kg": peso_ej,
+          })
+
+    submit_btn = st.form_submit_button(
+        "Guardar Registro Diario", use_container_width=True
+    )
+
+  if submit_btn:
+    fecha_str = str(fecha)
+    # Reemplazar si ya existe la fecha
+    db["registros"] = [r for r in db["registros"] if r["fecha"] != fecha_str]
+
+    nuevo_registro = {
+        "fecha": fecha_str,
+        "peso": peso,
+        "pasos": pasos,
+        "calorias": calorias,
+        "proteina": proteina,
+        "carbos": carbos,
+        "grasas": grasas,
+        "ejercicios": ejercicios_ingresados,
+    }
+
+    db["registros"].append(nuevo_registro)
+    # Ordenar por fecha cronológica
+    db["registros"] = sorted(db["registros"], key=lambda x: x["fecha"])
+    guardar_datos(db)
     st.success(
-        f"¡Semana {sem} registrada exitosamente! Ve a la pestaña 'Dashboard"
-        " Principal' para ver las métricas actualizadas."
+        f"¡Registro del día {fecha_str} guardado exitosamente en la base de"
+        " datos!"
     )
 
-# ================= TAB 3: GRÁFICAS =================
-with tab3:
-  st.subheader("📈 Análisis Gráfico de Tendencias")
-  if len(historial) >= 1:
-    df = pd.DataFrame(historial)
+# ================= TAB 2: DASHBOARD Y GRÁFICAS =================
+with tab2:
+  st.subheader("📊 Evolución y Tendencias Diarias")
 
-    # Gráfica interactiva de peso con Plotly
-    fig = px.line(
+  if len(registros) >= 1:
+    df = pd.DataFrame(registros)
+
+    # Métricas rápidas del último registro
+    ultimo = registros[-1]
+    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+    with col_m1:
+      st.metric("Último Peso", f"{ultimo['peso']} kg")
+    with col_m2:
+      st.metric("Pasos Recientes", f"{ultimo['pasos']} pasos")
+    with col_m3:
+      st.metric("Calorías Recientes", f"{ultimo['calorias']} kcal")
+    with col_m4:
+      st.metric("Proteína Reciente", f"{ultimo['proteina']} g")
+
+    st.divider()
+
+    # Gráfica de Peso Corporal
+    fig_peso = px.line(
         df,
-        x="semana",
+        x="fecha",
         y="peso",
         markers=True,
-        title="Evolución del Peso Corporal por Semana",
-        labels={"semana": "Semana", "peso": "Peso Promedio (kg)"},
+        title="Tendencia Diaria del Peso Corporal",
+        labels={"fecha": "Fecha", "peso": "Peso (kg)"},
     )
-    fig.update_traces(
+    fig_peso.update_traces(
         line=dict(color="#00E676", width=3), marker=dict(size=8)
     )
-    fig.update_layout(
+    fig_peso.update_layout(
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
         font_color="white",
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig_peso, use_container_width=True)
+
+    # Gráfica de Pasos y Calorías
+    col_g1, col_g2 = st.columns(2)
+    with col_g1:
+      fig_pasos = px.bar(
+          df,
+          x="fecha",
+          y="pasos",
+          title="Registro Diario de Pasos (NEAT)",
+          labels={"fecha": "Fecha", "pasos": "Pasos"},
+      )
+      fig_pasos.update_layout(
+          plot_bgcolor="rgba(0,0,0,0)",
+          paper_bgcolor="rgba(0,0,0,0)",
+          font_color="white",
+      )
+      st.plotly_chart(fig_pasos, use_container_width=True)
+
+    with col_g2:
+      fig_cal = px.line(
+          df,
+          x="fecha",
+          y="calorias",
+          markers=True,
+          title="Calorías Consumidas Diarias",
+          labels={"fecha": "Fecha", "calorias": "kcal"},
+      )
+      fig_cal.update_traces(
+          line=dict(color="#FF9800", width=3), marker=dict(size=8)
+      )
+      fig_cal.update_layout(
+          plot_bgcolor="rgba(0,0,0,0)",
+          paper_bgcolor="rgba(0,0,0,0)",
+          font_color="white",
+      )
+      st.plotly_chart(fig_cal, use_container_width=True)
+
+    st.divider()
+    st.subheader("📋 Tabla General de Registros")
+    st.dataframe(df[["fecha", "peso", "pasos", "calorias", "proteina", "carbos", "grasas"]], use_container_width=True)
   else:
-    st.warning("⚠️ No hay suficientes datos registrados para generar la gráfica.")
+    st.warning("⚠️ No hay suficientes registros diarios cargados todavía.")
+
+# ================= TAB 3: HISTORIAL DE FUERZA =================
+with tab3:
+  st.subheader("🏋️‍♂️ Progreso de Ejercicios en el Gimnasio")
+  
+  # Aplanar los datos de ejercicios para ver la sobrecarga progresiva
+  lista_ejercicios_plana = []
+  for reg in registros:
+    fecha_reg = reg["fecha"]
+    for ej in reg.get("ejercicios", []):
+      lista_ejercicios_plana.append({
+          "fecha": fecha_reg,
+          "ejercicio": ej["ejercicio"],
+          "series": ej["series"],
+          "reps": ej["reps"],
+          "peso_kg": ej["peso_kg"]
+      })
+
+  if lista_ejercicios_plana:
+    df_gym = pd.DataFrame(lista_ejercicios_plana)
+    
+    # Filtro por ejercicio para ver su evolución específica
+    ejercicios_unicos = df_gym["ejercicio"].unique()
+    ejercicio_seleccionado = st.selectbox("Selecciona un ejercicio para ver su evolución de carga:", ejercicios_unicos)
+    
+    df_filtrado = df_gym[df_gym["ejercicio"] == ejercicio_seleccionado]
+    
+    # Gráfica de evolución de peso en el ejercicio
+    fig_gym = px.line(
+        df_filtrado,
+        x="fecha",
+        y="peso_kg",
+        markers=True,
+        title=f"Evolución de Carga en: {ejercicio_seleccionado}",
+        labels={"fecha": "Fecha", "peso_kg": "Peso Usado (kg)"}
+    )
+    fig_gym.update_traces(line=dict(color="#29B6F6", width=3), marker=dict(size=10))
+    fig_gym.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font_color="white")
+    st.plotly_chart(fig_gym, use_container_width=True)
+
+    st.subheader("Historial Detallado de Entrenamientos")
+    st.dataframe(df_gym, use_container_width=True)
+  else:
+    st.info("ℹ️ Aún no has registrado ejercicios con pesas en los formularios diarios. Rellena los campos de los expansores de ejercicios en la pestaña 'Registro Diario'.")
