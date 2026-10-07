@@ -20,8 +20,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.title("🏋️‍♂️ Bitácora de Gym & Pasos")
-st.markdown("Control directo de tu peso, actividad diaria y cargas en el gimnasio.")
+st.title("🏋️‍♂️ Bitácora de Gym, Enfoques & Pasos")
+st.markdown("Control directo de tu peso, tipo de rutina diaria y cargas en el gimnasio.")
 
 ARCHIVO_DATOS = "historial_simple.json"
 
@@ -46,15 +46,26 @@ tab1, tab2 = st.tabs(["📝 Registrar Día", "📈 Ver Progreso y Cargas"])
 
 # ================= TAB 1: REGISTRAR DÍA =================
 with tab1:
-  st.subheader("Registrar Actividad Diaria")
+  st.subheader("Registrar Actividad Diaria y Enfoque")
 
   with st.form("form_simple", clear_on_submit=False):
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
       fecha = st.date_input("Fecha")
     with col2:
       peso = st.number_input(
           "Peso en ayunas (kg)", min_value=30.0, max_value=200.0, format="%.2f"
+      )
+    with col3:
+      tipo_rutina = st.selectbox(
+          "Enfoque / Rutina de Hoy",
+          [
+              "Torso",
+              "Piernas 1 (Cadena Posterior)",
+              "Piernas 2 (Cuádriceps)",
+              "Cardio / Fútbol",
+              "Descanso / Otro",
+          ],
       )
 
     pasos = st.number_input(
@@ -62,10 +73,9 @@ with tab1:
     )
 
     st.markdown("---")
-    st.subheader("💪 Ejercicios de Hoy")
-    st.markdown("Anota los ejercicios que hiciste, cuántas series, repeticiones y el peso con el que trabajaste.")
+    st.subheader("💪 Ejercicios Realizados Hoy")
+    st.markdown("Anota los ejercicios de tu sesión, series, repeticiones y peso utilizado.")
 
-    # Permitir registrar hasta 6 ejercicios de forma limpia
     ejercicios_dia = []
     for i in range(1, 7):
       with st.expander(f"Ejercicio #{i} (Opcional)"):
@@ -103,6 +113,7 @@ with tab1:
     nuevo_reg = {
         "fecha": fecha_str,
         "peso": peso,
+        "tipo_rutina": tipo_rutina,
         "pasos": pasos,
         "ejercicios": ejercicios_dia,
     }
@@ -110,7 +121,7 @@ with tab1:
     db["registros"].append(nuevo_reg)
     db["registros"] = sorted(db["registros"], key=lambda x: x["fecha"])
     guardar_datos(db)
-    st.success(f"¡Registro del {fecha_str} guardado con éxito!")
+    st.success(f"¡Registro del {fecha_str} ({tipo_rutina}) guardado con éxito!")
 
 # ================= TAB 2: VER PROGRESO =================
 with tab2:
@@ -164,6 +175,7 @@ with tab2:
       for ej in reg.get("ejercicios", []):
         lista_ej_plana.append({
             "fecha": reg["fecha"],
+            "tipo_rutina": reg.get("tipo_rutina", "General"),
             "ejercicio": ej["ejercicio"],
             "series": ej["series"],
             "reps": ej["reps"],
@@ -174,4 +186,37 @@ with tab2:
       df_ej = pd.DataFrame(lista_ej_plana)
       st.subheader("💪 Evolución de Peso en el Gimnasio por Ejercicio")
 
-      ej_
+      ej_seleccionado = st.selectbox(
+          "Elige un ejercicio para ver cómo ha subido tu peso:",
+          df_ej["ejercicio"].unique(),
+      )
+
+      df_filtrado = df_ej[df_ej["ejercicio"] == ej_seleccionado]
+
+      fig_ej = px.line(
+          df_filtrado,
+          x="fecha",
+          y="peso_kg",
+          markers=True,
+          title=f"Progreso de Carga en: {ej_seleccionado}",
+          labels={"fecha": "Fecha", "peso_kg": "Peso (kg)"},
+      )
+      fig_ej.update_traces(
+          line=dict(color="#FF9800", width=3), marker=dict(size=10)
+      )
+      fig_ej.update_layout(
+          plot_bgcolor="rgba(0,0,0,0)",
+          paper_bgcolor="rgba(0,0,0,0)",
+          font_color="white",
+      )
+      st.plotly_chart(fig_ej, use_container_width=True)
+
+      st.subheader("📋 Detalle de Entrenamientos (Con Enfoque de Rutina)")
+      st.dataframe(df_ej, use_container_width=True)
+    else:
+      st.info(
+          "ℹ️ Todavía no has agregado ejercicios en los formularios de la"
+          " pestaña 'Registrar Día'."
+      )
+  else:
+    st.info("ℹ️ Aún no hay registros guardados. Comienza a registrar tu día en la primera pestaña.")
